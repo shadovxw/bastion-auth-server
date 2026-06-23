@@ -7,7 +7,7 @@ import (
 
 func CORS() fiber.Handler {
 	return cors.New(cors.Config{
-		AllowOrigins:     "https://auth.shadovx.me,http://localhost:3002,http://localhost:3000",
+		AllowOrigins:     "https://auth.shadovxw.me,https://api.auth.shadovxw.me,http://localhost:3002,http://localhost:3000",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
 		AllowCredentials: true,

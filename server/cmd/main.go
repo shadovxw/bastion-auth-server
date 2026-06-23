@@ -12,12 +12,14 @@ import (
 	"github.com/shadovxw/bastion/internal/handlers/admin"
 	"github.com/shadovxw/bastion/internal/middleware"
 	"github.com/shadovxw/bastion/internal/services"
+	"github.com/shadovxw/bastion/internal/services/oauth"
 )
 
 func main() {
 	cfg := config.Load()
 
 	database := db.NewPostgres(cfg.DatabaseURL)
+	redisClient := db.NewRedis(cfg.RedisURL)
 
 	tokenSvc, err := services.NewTokenService(
 		cfg.JWTPrivateKeyPath, cfg.JWTPublicKeyPath,
@@ -31,7 +33,17 @@ func main() {
 	rbacSvc := services.NewRBACService(database)
 	appSvc := services.NewAppService(database)
 	analyticsSvc := services.NewAnalyticsService(database)
+	sessionSvc := services.NewSessionService(redisClient, cfg.SessionTTLHours)
 
+	googleProvider := oauth.NewGoogleProvider(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURI)
+	githubProvider := oauth.NewGitHubProvider(cfg.GitHubClientID, cfg.GitHubClientSecret, cfg.GitHubRedirectURI)
+
+	oauthHandler := handlers.NewOAuthHandler(
+		googleProvider, githubProvider,
+		userSvc, rbacSvc, sessionSvc, tokenSvc,
+		cfg.CookieDomain, cfg.CookieSecure,
+		cfg.JWTAccessTTL, cfg.JWTRefreshTTLDays,
+	)
 	authHandler := handlers.NewAuthHandler(
 		tokenSvc, cfg.CookieDomain, cfg.CookieSecure, cfg.JWTAccessTTL,
 	)
@@ -59,15 +71,23 @@ func main() {
 	})
 	app.Get("/.well-known/jwks.json", jwksHandler.Handle)
 
-	// Auth endpoints
+	// OAuth flows
+	app.Get("/oauth/start/:provider", oauthHandler.Start)
+	app.Get("/oauth/callback/:provider", oauthHandler.Callback)
+
+	// Local auth (kept for internal tooling)
 	app.Post("/auth/login", authHandler.Login)
+
+	// Session
 	app.Post("/session/logout", func(c *fiber.Ctx) error {
-		c.Cookie(&fiber.Cookie{
-			Name: "auth_session", Value: "",
-			Domain: cfg.CookieDomain, Path: "/",
-			HTTPOnly: true, Secure: cfg.CookieSecure,
-			SameSite: "Lax", MaxAge: -1,
-		})
+		for _, name := range []string{"auth_session", "auth_refresh", "sso_session"} {
+			c.Cookie(&fiber.Cookie{
+				Name: name, Value: "",
+				Domain: cfg.CookieDomain, Path: "/",
+				HTTPOnly: true, Secure: cfg.CookieSecure,
+				SameSite: "Lax", MaxAge: -1,
+			})
+		}
 		return c.JSON(fiber.Map{"status": "logged out"})
 	})
 

@@ -7,11 +7,17 @@ import (
 
 func Auth(tokenSvc *services.TokenService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		cookie := c.Cookies("auth_session")
-		if cookie == "" {
+		token := c.Cookies("auth_session")
+		if token == "" {
+			// Fall back to Authorization: Bearer <token>
+			if h := c.Get("Authorization"); len(h) > 7 && h[:7] == "Bearer " {
+				token = h[7:]
+			}
+		}
+		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "unauthorized"})
 		}
-		claims, err := tokenSvc.Verify(cookie)
+		claims, err := tokenSvc.Verify(token)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid token"})
 		}

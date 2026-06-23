@@ -34,6 +34,7 @@ type Config struct {
 
 	AdminPermission string
 	AllowedEmails   []string // empty = open to everyone
+	WebURL          string   // URL of the Next.js web UI, for login redirects
 }
 
 func Load() *Config {
@@ -58,6 +59,7 @@ func Load() *Config {
 		GitHubRedirectURI:  mustEnv("GITHUB_REDIRECT_URI"),
 		AdminPermission: getEnv("ADMIN_PERMISSION", "auth:admin"),
 		AllowedEmails:   parseCSV(os.Getenv("ALLOWED_EMAILS")),
+		WebURL:          getEnv("WEB_URL", "https://auth.shadovxw.me"),
 	}
 	return c
 }

@@ -45,6 +45,10 @@ func main() {
 		cfg.JWTAccessTTL, cfg.JWTRefreshTTLDays,
 		cfg.AllowedEmails,
 	)
+	authorizeHandler := handlers.NewAuthorizeHandler(
+		sessionSvc, tokenSvc, userSvc, rbacSvc, appSvc,
+		cfg.CookieDomain, cfg.CookieSecure, cfg.JWTAccessTTL, cfg.WebURL,
+	)
 	authHandler := handlers.NewAuthHandler(
 		tokenSvc, cfg.CookieDomain, cfg.CookieSecure, cfg.JWTAccessTTL,
 	)
@@ -71,6 +75,9 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
 	app.Get("/.well-known/jwks.json", jwksHandler.Handle)
+
+	// SSO entry point — apps redirect here
+	app.Get("/authorize", authorizeHandler.Handle)
 
 	// OAuth flows
 	app.Get("/oauth/start/:provider", oauthHandler.Start)

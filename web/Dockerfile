@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
+ARG NEXT_PUBLIC_AUTH_SERVER=https://api.auth.shadovxw.me
+ENV NEXT_PUBLIC_AUTH_SERVER=$NEXT_PUBLIC_AUTH_SERVER
 RUN npm run build
 
 FROM node:20-alpine

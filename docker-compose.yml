@@ -52,7 +52,10 @@ services:
       - bastion
 
   bastion-web:
-    build: ./web
+    build:
+      context: ./web
+      args:
+        - NEXT_PUBLIC_AUTH_SERVER=${NEXT_PUBLIC_AUTH_SERVER:-https://api.auth.shadovxw.me}
     container_name: bastion-web
     restart: unless-stopped
     ports:

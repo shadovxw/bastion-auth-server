@@ -11,6 +11,10 @@ interface LoginFormProps {
 
 export function LoginForm({ returnTo }: LoginFormProps) {
   const redirect = returnTo ?? "/admin"
+  // Ensure return_to is absolute so the Go server redirects back to the web UI, not itself
+  const absoluteRedirect = redirect.startsWith("http")
+    ? redirect
+    : `${window.location.origin}${redirect}`
 
   return (
     <Card className="w-full max-w-sm">
@@ -24,7 +28,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
           className="w-full gap-2"
           onClick={() =>
             window.location.assign(
-              `${AUTH_SERVER}/oauth/start/google?return_to=${encodeURIComponent(redirect)}`
+              `${AUTH_SERVER}/oauth/start/google?return_to=${encodeURIComponent(absoluteRedirect)}`
             )
           }
         >
@@ -53,7 +57,7 @@ export function LoginForm({ returnTo }: LoginFormProps) {
           className="w-full gap-2"
           onClick={() =>
             window.location.assign(
-              `${AUTH_SERVER}/oauth/start/github?return_to=${encodeURIComponent(redirect)}`
+              `${AUTH_SERVER}/oauth/start/github?return_to=${encodeURIComponent(absoluteRedirect)}`
             )
           }
         >

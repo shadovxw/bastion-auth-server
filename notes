@@ -1,0 +1,47 @@
+# Generate RS256 keypair — required before running the server
+mkdir server\keys
+# Run this in WSL or Git Bash (openssl):
+openssl genrsa -out server/keys/private.pem 2048
+openssl rsa -in server/keys/private.pem -pubout -out server/keys/public.pem
+
+# Then copy .env.example → .env and fill in your OAuth credentials
+cp .env.example .env
+
+
+
+## To run locally right now
+
+**Step 1 — Generate keys** (run in Git Bash / WSL)
+```bash
+mkdir server/keys
+openssl genrsa -out server/keys/private.pem 2048
+openssl rsa -in server/keys/private.pem -pubout -out server/keys/public.pem
+```
+
+**Step 2 — Create `.env`**
+```bash
+cp server/.env.local.example server/.env
+# Fill in GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET
+```
+
+**Step 3 — OAuth app settings** (important: update redirect URIs)
+- Google Cloud Console → your OAuth app → add `http://localhost:3001/oauth/callback/google`
+- GitHub → your OAuth app → callback URL: `http://localhost:3001/oauth/callback/github`
+
+**Step 4 — Start Postgres + Redis**
+```bash
+docker compose up postgres redis -d
+```
+
+**Step 5 — Run the server**
+```bash
+cd server && air   # or: go run ./cmd/main.go
+```
+
+**Step 6 — Verify**
+```
+GET http://localhost:3001/health
+GET http://localhost:3001/.well-known/jwks.json
+```
+
+---

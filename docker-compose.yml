@@ -1,0 +1,107 @@
+version: '3.9'
+
+services:
+  migrate:
+    image: migrate/migrate:v4.17.0
+    command:
+      - "-path=/migrations"
+      - "-database=postgres://bastion:${POSTGRES_PASSWORD}@postgres:5432/bastion?sslmode=disable"
+      - "up"
+    volumes:
+      - ./server/internal/db/migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bastion
+
+  bastion-server:
+    build: ./server
+    container_name: bastion-server
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - DATABASE_URL=postgres://bastion:${POSTGRES_PASSWORD}@postgres:5432/bastion?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - JWT_PRIVATE_KEY_PATH=./keys/private.pem
+      - JWT_PUBLIC_KEY_PATH=./keys/public.pem
+      - JWT_ACCESS_TTL_SECONDS=${JWT_ACCESS_TTL_SECONDS:-3600}
+      - JWT_REFRESH_TTL_DAYS=${JWT_REFRESH_TTL_DAYS:-30}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-.shadovxw.me}
+      - COOKIE_SECURE=${COOKIE_SECURE:-true}
+      - SESSION_TTL_HOURS=${SESSION_TTL_HOURS:-24}
+      - ADMIN_PERMISSION=${ADMIN_PERMISSION:-auth:admin}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-https://api.auth.shadovxw.me/oauth/callback/google}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - GITHUB_REDIRECT_URI=${GITHUB_REDIRECT_URI:-https://api.auth.shadovxw.me/oauth/callback/github}
+    volumes:
+      - ${BASTION_KEYS_PATH:-./server/keys}:/app/keys:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - bastion
+
+  bastion-web:
+    build: ./web
+    container_name: bastion-web
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NEXT_PUBLIC_AUTH_SERVER=${NEXT_PUBLIC_AUTH_SERVER:-https://api.auth.shadovxw.me}
+      - NEXT_PUBLIC_CLIENT_ID=${NEXT_PUBLIC_CLIENT_ID:-bastion-web}
+      - BASTION_SERVER_URL=http://bastion-server:3001
+    depends_on:
+      - bastion-server
+    networks:
+      - bastion
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: bastion-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=bastion
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=bastion
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bastion"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bastion
+
+  redis:
+    image: redis:7-alpine
+    container_name: bastion-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - bastion
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  bastion:
+    driver: bridge

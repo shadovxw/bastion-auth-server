@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/shadovxw/bastion/internal/services"
@@ -19,6 +20,7 @@ type OAuthHandler struct {
 	cookieSecure   bool
 	accessTTL      int
 	refreshTTL     int
+	allowedEmails  []string // nil = open to everyone
 }
 
 func NewOAuthHandler(
@@ -32,18 +34,20 @@ func NewOAuthHandler(
 	cookieSecure bool,
 	accessTTL int,
 	refreshTTLDays int,
+	allowedEmails []string,
 ) *OAuthHandler {
 	return &OAuthHandler{
-		google:       google,
-		github:       github,
-		userSvc:      userSvc,
-		rbacSvc:      rbacSvc,
-		sessionSvc:   sessionSvc,
-		tokenSvc:     tokenSvc,
-		cookieDomain: cookieDomain,
-		cookieSecure: cookieSecure,
-		accessTTL:    accessTTL,
-		refreshTTL:   refreshTTLDays * 86400,
+		google:        google,
+		github:        github,
+		userSvc:       userSvc,
+		rbacSvc:       rbacSvc,
+		sessionSvc:    sessionSvc,
+		tokenSvc:      tokenSvc,
+		cookieDomain:  cookieDomain,
+		cookieSecure:  cookieSecure,
+		accessTTL:     accessTTL,
+		refreshTTL:    refreshTTLDays * 86400,
+		allowedEmails: allowedEmails,
 	}
 }
 
@@ -105,6 +109,10 @@ func (h *OAuthHandler) Callback(c *fiber.Ctx) error {
 		email, displayName, avatar, providerID = u.Email, u.Name, u.AvatarURL, fmt.Sprintf("%d", u.ID)
 	default:
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "unknown provider"})
+	}
+
+	if !h.emailAllowed(email) {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "access denied: your account is not allowed to log in"})
 	}
 
 	user, err := h.userSvc.UpsertUser(provider, providerID, email, displayName, avatar)
@@ -177,6 +185,19 @@ func (h *OAuthHandler) Callback(c *fiber.Ctx) error {
 		return c.Redirect(returnTo)
 	}
 	return c.Redirect("/")
+}
+
+func (h *OAuthHandler) emailAllowed(email string) bool {
+	if len(h.allowedEmails) == 0 {
+		return true
+	}
+	lower := strings.ToLower(email)
+	for _, e := range h.allowedEmails {
+		if e == lower {
+			return true
+		}
+	}
+	return false
 }
 
 func splitState(state string) []string {

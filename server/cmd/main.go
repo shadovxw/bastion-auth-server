@@ -43,6 +43,7 @@ func main() {
 		userSvc, rbacSvc, sessionSvc, tokenSvc,
 		cfg.CookieDomain, cfg.CookieSecure,
 		cfg.JWTAccessTTL, cfg.JWTRefreshTTLDays,
+		cfg.AllowedEmails,
 	)
 	authHandler := handlers.NewAuthHandler(
 		tokenSvc, cfg.CookieDomain, cfg.CookieSecure, cfg.JWTAccessTTL,

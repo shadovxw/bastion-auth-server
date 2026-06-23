@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -32,6 +33,7 @@ type Config struct {
 	GitHubRedirectURI  string
 
 	AdminPermission string
+	AllowedEmails   []string // empty = open to everyone
 }
 
 func Load() *Config {
@@ -54,9 +56,24 @@ func Load() *Config {
 		GitHubClientID:     mustEnv("GITHUB_CLIENT_ID"),
 		GitHubClientSecret: mustEnv("GITHUB_CLIENT_SECRET"),
 		GitHubRedirectURI:  mustEnv("GITHUB_REDIRECT_URI"),
-		AdminPermission:    getEnv("ADMIN_PERMISSION", "auth:admin"),
+		AdminPermission: getEnv("ADMIN_PERMISSION", "auth:admin"),
+		AllowedEmails:   parseCSV(os.Getenv("ALLOWED_EMAILS")),
 	}
 	return c
+}
+
+func parseCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, strings.ToLower(t))
+		}
+	}
+	return out
 }
 
 func mustEnv(key string) string {

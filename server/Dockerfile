@@ -1,9 +1,7 @@
 FROM golang:1.22-alpine AS builder
 WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
 COPY . .
-RUN go build -o bastion-server ./cmd/main.go
+RUN go build -mod=vendor -o bastion-server ./cmd/main.go
 
 FROM alpine:3.19
 WORKDIR /app

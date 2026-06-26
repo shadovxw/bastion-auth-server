@@ -115,6 +115,12 @@ func (c *Client) RequireAny(permissions ...string) fiber.Handler {
 	}
 }
 
+// ValidateToken verifies a raw JWT string and returns the User.
+// Use this for WebSocket handlers and non-Fiber contexts where Middleware() isn't available.
+func (c *Client) ValidateToken(token string) (*User, error) {
+	return c.verifyToken(token)
+}
+
 // extractUser reads and verifies the JWT from the cookie or Authorization header.
 func (c *Client) extractUser(ctx *fiber.Ctx) (*User, error) {
 	tokenStr := ctx.Cookies("auth_session")

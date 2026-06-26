@@ -87,6 +87,23 @@ func main() {
 	app.Post("/auth/login", authHandler.Login)
 
 	// Session
+	app.Get("/session/me", func(c *fiber.Ctx) error {
+		cookie := c.Cookies("auth_session")
+		if cookie == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "no session"})
+		}
+		claims, err := tokenSvc.Verify(cookie)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid session"})
+		}
+		return c.JSON(fiber.Map{
+			"sub":         claims.Subject,
+			"email":       claims.Email,
+			"displayName": claims.DisplayName,
+			"avatar":      claims.Avatar,
+		})
+	})
+
 	app.Post("/session/logout", func(c *fiber.Ctx) error {
 		for _, name := range []string{"auth_session", "auth_refresh", "sso_session"} {
 			c.Cookie(&fiber.Cookie{
